@@ -353,7 +353,7 @@ def train_models_core(_X, _y, _df_encoded):
     # Part 1: Initial Random Forest Analysis
     # Use all features
     X_train_all, X_test_all, y_train_all, y_test_all = train_test_split(
-        X, y, test_size=0.3, random_state=42, stratify=y
+        X, y, test_size=0.7, random_state=42, stratify=y
     )
 
     # Train Random Forest
@@ -372,7 +372,7 @@ def train_models_core(_X, _y, _df_encoded):
     # Part 2: Multi-model optimization with selected features
     X_selected = df_encoded[top_20_features]
     X_train, X_test, y_train, y_test = train_test_split(
-        X_selected, y, test_size=0.3, random_state=42, stratify=y
+        X_selected, y, test_size=0.7, random_state=42, stratify=y
     )
 
     # Define models
