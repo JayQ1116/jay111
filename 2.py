@@ -381,7 +381,7 @@ def train_models_core(_X, _y, _df_encoded):
         "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
         "SVM": SVC(probability=True, random_state=42),
         "Decision Tree": DecisionTreeClassifier(random_state=42),
-        "XGBoost": XGBClassifier(streamliteval_metric='logloss', random_state=42)
+        "XGBoost": XGBClassifier(eval_metric='logloss', random_state=42)
     }
 
     # Stage 1: Initial grid search
@@ -566,6 +566,15 @@ def preprocess_input(input_data, top_20_features, df_encoded_columns):
     return df_final
 
 
+# Load local model
+import os
+import joblib
+
+def load_local_model(pkl_path):
+    with open(pkl_path, "rb") as f:
+        model_dict = joblib.load(f)
+    return model_dict
+
 # Main application
 def main():
     # Header
@@ -575,6 +584,13 @@ def main():
         <p>Machine Learning Based CKD Prediction & Analysis Platform</p>
     </div>
     """, unsafe_allow_html=True)
+
+    # Initialize session state
+    if os.path.exists("ckd_model.pkl"):
+        results = load_local_model("ckd_model.pkl")
+        st.session_state['trained'] = True
+        st.session_state['results'] = results
+        st.session_state['df_encoded_columns'] = results.get('df_encoded_columns', None)
 
     # Load data
     with st.spinner('Loading data...'):

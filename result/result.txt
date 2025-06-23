@@ -140,12 +140,14 @@ Comparison of Parameter Optimization Effects
 ================================================================================
 
 Comparison of parameter optimization effects:
-                 Model  Initial_CV_Score  Validation_CV_Score  Final_Test_Score  Improvement
-0        Random Forest            0.9821               0.9821            0.9917       0.0000
-1  Logistic Regression            0.9643               0.9643            0.9750       0.0000
-2                  SVM            0.9821               0.9857            0.9917       0.0036
-3        Decision Tree            0.9429               0.9429            0.9667       0.0000
-4              XGBoost            0.9714               0.9714            0.9833       0.0000
+                 Model  Initial_CV_Score  ...  Final_Test_Score  Improvement
+0        Random Forest            0.9821  ...            0.9917       0.0000
+1  Logistic Regression            0.9643  ...            0.9750       0.0000
+2                  SVM            0.9821  ...            0.9917       0.0036
+3        Decision Tree            0.9429  ...            0.9667       0.0000
+4              XGBoost            0.9714  ...            0.9833       0.0000
+
+[5 rows x 5 columns]
 
 Final model detailed metrics:
                      Accuracy  Precision  Recall  F1-Score
