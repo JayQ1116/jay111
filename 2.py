@@ -823,7 +823,7 @@ def main():
     st.success("✅ Model retrained and saved to MongoDB!")
 
     # Prediction
-    elif mode == "🔮 Prediction":
+elif mode == "🔮 Prediction":
         st.markdown('<h2 class="sub-header">🔮 Patient Diagnosis Prediction</h2>', unsafe_allow_html=True)
 
         if 'trained' not in st.session_state:
