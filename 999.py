@@ -1430,11 +1430,3 @@ for name, result in results.items():
 
 log_result("\nAnalysis complete! All results have been saved to the result directory.")
 
-import joblib
-
-model_dict = {
-    'final_models': final_models,                # 你的所有模型字典
-    'top_20_features': top_20_features,          # 重要特征名
-    'df_encoded_columns': df_encoded.columns     # 特征列名
-}
-joblib.dump(model_dict, 'ckd_model.pkl')
