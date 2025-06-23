@@ -763,14 +763,14 @@ def main():
                     st.warning("No model found in MongoDB!")
         with col3:
            if st.button("🔄 Retrain Model (Overwrite MongoDB)", use_container_width=True):
-    progress_bar = st.progress(0)
-    status_text = st.empty()
-    status_text.text('Retraining model...')
+               progress_bar = st.progress(0)
+               status_text = st.empty()
+               status_text.text('Retraining model...')
 
-    user_inputs = load_all_user_inputs_from_mongo()
-    if user_inputs:
-        user_inputs_df = pd.DataFrame(user_inputs)
-        if '_id' in user_inputs_df.columns:
+        user_inputs = load_all_user_inputs_from_mongo()
+        if user_inputs:
+            user_inputs_df = pd.DataFrame(user_inputs)
+            if '_id' in user_inputs_df.columns:
             user_inputs_df = user_inputs_df.drop(columns=['_id'])
         # Merge with original data
         df_aug = pd.concat([df, user_inputs_df], ignore_index=True)
