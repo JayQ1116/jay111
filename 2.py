@@ -762,68 +762,67 @@ def main():
                 else:
                     st.warning("No model found in MongoDB!")
         with col3:
-           if st.button("🔄 Retrain Model (Overwrite MongoDB)", use_container_width=True):
-               progress_bar = st.progress(0)
-               status_text = st.empty()
-               status_text.text('Retraining model...')
+            if st.button("🔄 Retrain Model (Overwrite MongoDB)", use_container_width=True):
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                status_text.text('Retraining model...')
 
-        user_inputs = load_all_user_inputs_from_mongo()
-        if user_inputs:
-            user_inputs_df = pd.DataFrame(user_inputs)
-            if '_id' in user_inputs_df.columns:
-                user_inputs_df = user_inputs_df.drop(columns=['_id'])
-        # Merge with original data
-        df_aug = pd.concat([df, user_inputs_df], ignore_index=True)
+                user_inputs = load_all_user_inputs_from_mongo()
+                if user_inputs:
+                    user_inputs_df = pd.DataFrame(user_inputs)
+                    if '_id' in user_inputs_df.columns:
+                        user_inputs_df = user_inputs_df.drop(columns=['_id'])
+                    # Merge with original data
+                    df_aug = pd.concat([df, user_inputs_df], ignore_index=True)
 
-        # 1. Convert continuous variables to numeric
-        for var in continuous_vars:
-            if var in df_aug.columns:
-                df_aug[var] = pd.to_numeric(df_aug[var], errors='coerce')
-        # 2. Convert categorical variables to category type
-        for var in categorical_vars:
-            if var in df_aug.columns:
-                df_aug[var] = df_aug[var].astype('category')
+                    # 1. Convert continuous variables to numeric
+                    for var in continuous_vars:
+                        if var in df_aug.columns:
+                            df_aug[var] = pd.to_numeric(df_aug[var], errors='coerce')
+                    # 2. Convert categorical variables to category type
+                    for var in categorical_vars:
+                        if var in df_aug.columns:
+                            df_aug[var] = df_aug[var].astype('category')
 
-        # 3. Impute missing values (same as load_and_process_data)
-        # Continuous: KNN imputer
-        from sklearn.impute import KNNImputer
-        knn_imputer = KNNImputer(n_neighbors=5)
-        num_cols = df_aug.select_dtypes(include=['float64', 'int64']).columns
-        df_aug[num_cols] = knn_imputer.fit_transform(df_aug[num_cols])
+                    # 3. Impute missing values (same as load_and_process_data)
+                    from sklearn.impute import KNNImputer
+                    knn_imputer = KNNImputer(n_neighbors=5)
+                    num_cols = df_aug.select_dtypes(include=['float64', 'int64']).columns
+                    df_aug[num_cols] = knn_imputer.fit_transform(df_aug[num_cols])
 
-        # Categorical: fill with mode
-        cat_cols = df_aug.select_dtypes(include=['category']).columns
-        for col in cat_cols:
-            if col != 'class' and df_aug[col].isnull().sum() > 0:
-                mode_val = df_aug[col].mode()[0]
-                df_aug[col].fillna(mode_val, inplace=True)
+                    # Categorical: fill with mode
+                    cat_cols = df_aug.select_dtypes(include=['category']).columns
+                    for col in cat_cols:
+                        if col != 'class' and df_aug[col].isnull().sum() > 0:
+                            mode_val = df_aug[col].mode()[0]
+                            df_aug[col].fillna(mode_val, inplace=True)
 
-        # 4. One-hot encoding
-        df_aug_encoded = pd.get_dummies(df_aug, columns=categorical_vars, drop_first=True)
-        X_aug = df_aug_encoded.drop(['class'], axis=1)
-        y_aug = df_aug_encoded['class']
+                    # 4. One-hot encoding
+                    df_aug_encoded = pd.get_dummies(df_aug, columns=categorical_vars, drop_first=True)
+                    X_aug = df_aug_encoded.drop(['class'], axis=1)
+                    y_aug = df_aug_encoded['class']
 
-        # 5. Check for any remaining NaN
-        if X_aug.isnull().any().any() or y_aug.isnull().any():
-            st.error("❌ Data still contains missing values after preprocessing. Please check input format.")
-            progress_bar.empty()
-            status_text.empty()
-            st.stop()
+                    # 5. Check for any remaining NaN
+                    if X_aug.isnull().any().any() or y_aug.isnull().any():
+                        st.error("❌ Data still contains missing values after preprocessing. Please check input format.")
+                        progress_bar.empty()
+                        status_text.empty()
+                        st.stop()
 
-        results = train_models_core(X_aug, y_aug, df_aug_encoded)
-    else:
-        results = train_models_core(X, y, df_encoded)
+                    results = train_models_core(X_aug, y_aug, df_aug_encoded)
+                else:
+                    results = train_models_core(X, y, df_encoded)
 
-    save_model_to_mongo(results)
-    st.session_state['trained'] = True
-    st.session_state['results'] = results
-    st.session_state['df_encoded_columns'] = df_encoded.columns
-    progress_bar.empty()
-    status_text.empty()
-    st.success("✅ Model retrained and saved to MongoDB!")
+                save_model_to_mongo(results)
+                st.session_state['trained'] = True
+                st.session_state['results'] = results
+                st.session_state['df_encoded_columns'] = df_encoded.columns
+                progress_bar.empty()
+                status_text.empty()
+                st.success("✅ Model retrained and saved to MongoDB!")
 
     # Prediction
-elif mode == "🔮 Prediction":
+    elif mode == "🔮 Prediction":
         st.markdown('<h2 class="sub-header">🔮 Patient Diagnosis Prediction</h2>', unsafe_allow_html=True)
 
         if 'trained' not in st.session_state:
