@@ -21,6 +21,58 @@ from ucimlrepo import fetch_ucirepo
 import os
 from PIL import Image
 import warnings
+import joblib
+import io
+from pymongo import MongoClient
+
+# MongoDB configuration
+# Replace <Qujy031023streamlit > with actual password
+MONGO_URI = "mongodb+srv://jay:Qujy031023@cluster0.pn1wsxr.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+MONGO_DB = "ckd_ml"
+MONGO_COLL = "models"
+
+def get_mongo_collection():
+    client = MongoClient(MONGO_URI)
+    db = client[MONGO_DB]
+    return db[MONGO_COLL]
+
+def save_model_to_mongo(model_dict, model_name="ckd_ensemble"):
+    
+    coll = get_mongo_collection()
+    buf = io.BytesIO()
+    joblib.dump(model_dict, buf)
+    buf.seek(0)
+    coll.delete_many({"model_name": model_name})
+    coll.insert_one({
+        "model_name": model_name,
+        "model_blob": buf.read(),
+    })
+
+def load_model_from_mongo(model_name="ckd_ensemble"):
+  
+    coll = get_mongo_collection()
+    doc = coll.find_one({"model_name": model_name})
+    if doc:
+        buf = io.BytesIO(doc["model_blob"])
+        model_dict = joblib.load(buf)
+        return model_dict
+    return None
+
+
+def save_user_input_to_mongo(input_data):
+    """Save user input data to MongoDB user_inputs collection"""
+    client = MongoClient(MONGO_URI)
+    db = client[MONGO_DB]
+    user_inputs_coll = db["user_inputs"]
+    user_inputs_coll.insert_one(input_data)
+
+def load_all_user_inputs_from_mongo():
+    """Load all user inputs from MongoDB user_inputs collection"""
+    client = MongoClient(MONGO_URI)
+    db = client[MONGO_DB]
+    user_inputs_coll = db["user_inputs"]
+    return list(user_inputs_coll.find())
+
 
 warnings.filterwarnings('ignore')
 
@@ -329,7 +381,7 @@ def train_models_core(_X, _y, _df_encoded):
         "Logistic Regression": LogisticRegression(max_iter=1000, random_state=42),
         "SVM": SVC(probability=True, random_state=42),
         "Decision Tree": DecisionTreeClassifier(random_state=42),
-        "XGBoost": XGBClassifier(use_label_encoder=False, eval_metric='logloss', random_state=42)
+        "XGBoost": XGBClassifier(streamliteval_metric='logloss', random_state=42)
     }
 
     # Stage 1: Initial grid search
@@ -662,24 +714,74 @@ def main():
     elif mode == "🤖 Model Training":
         st.markdown('<h2 class="sub-header">🤖 Model Training & Optimization</h2>', unsafe_allow_html=True)
 
-        if st.button("🚀 Start Training", use_container_width=True):
-            # Training progress
+        # Train Model button on a single row
+        if st.button("🚀 Train Model", use_container_width=True):
             progress_bar = st.progress(0)
             status_text = st.empty()
-
-            # Train models
-            status_text.text('Training models, please wait...')
+            status_text.text('Training model, please wait...')
             results = train_models_core(X, y, df_encoded)
-
-            # Save results
             st.session_state['trained'] = True
             st.session_state['results'] = results
             st.session_state['df_encoded_columns'] = df_encoded.columns
-
             progress_bar.empty()
             status_text.empty()
-
             st.success("✅ Model training completed!")
+
+        # Save/Load/Retrain buttons on the next row, side by side
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            if st.button("💾 Save Model to MongoDB", use_container_width=True):
+                if 'results' in st.session_state:
+                    save_model_to_mongo(st.session_state['results'])
+                    st.success("✅ Model saved to MongoDB!")
+                else:
+                    st.warning("Please train the model first!")
+        with col2:
+            if st.button("☁️ Load Model from MongoDB", use_container_width=True):
+                loaded = load_model_from_mongo()
+                if loaded:
+                    st.session_state['trained'] = True
+                    st.session_state['results'] = loaded
+                    st.success("✅ Model loaded from MongoDB!")
+                else:
+                    st.warning("No model found in MongoDB!")
+        with col3:
+            if st.button("🔄 Retrain Model (Overwrite MongoDB)", use_container_width=True):
+                progress_bar = st.progress(0)
+                status_text = st.empty()
+                status_text.text('Retraining model...')
+
+                # Load all user inputs from MongoDB
+                user_inputs = load_all_user_inputs_from_mongo()
+                if user_inputs:
+                    user_inputs_df = pd.DataFrame(user_inputs)
+                    # Remove MongoDB default '_id' field if present
+                    if '_id' in user_inputs_df.columns:
+                        user_inputs_df = user_inputs_df.drop(columns=['_id'])
+                    # Merge user inputs with original data
+                    df_aug = pd.concat([df, user_inputs_df], ignore_index=True)
+                    # Preprocess merged data
+                    for var in continuous_vars:
+                        if var in df_aug.columns:
+                            df_aug[var] = pd.to_numeric(df_aug[var], errors='coerce')
+                    for var in categorical_vars:
+                        if var in df_aug.columns:
+                            df_aug[var] = df_aug[var].astype('category')
+                    # One-hot encoding
+                    df_aug_encoded = pd.get_dummies(df_aug, columns=categorical_vars, drop_first=True)
+                    X_aug = df_aug_encoded.drop(['class'], axis=1)
+                    y_aug = df_aug_encoded['class']
+                    results = train_models_core(X_aug, y_aug, df_aug_encoded)
+                else:
+                    results = train_models_core(X, y, df_encoded)
+
+                save_model_to_mongo(results)
+                st.session_state['trained'] = True
+                st.session_state['results'] = results
+                st.session_state['df_encoded_columns'] = df_encoded.columns
+                progress_bar.empty()
+                status_text.empty()
+                st.success("✅ Model retrained and saved to MongoDB!")
 
     # Prediction
     elif mode == "🔮 Prediction":
@@ -740,6 +842,8 @@ def main():
             submitted = st.form_submit_button("🔍 Start Diagnosis", use_container_width=True)
 
             if submitted:
+                # Save user input to MongoDB
+                save_user_input_to_mongo(input_data)
                 # Preprocess data
                 processed_data = preprocess_input(input_data, top_20_features, df_encoded_columns)
 
