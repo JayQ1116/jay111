@@ -566,14 +566,6 @@ def preprocess_input(input_data, top_20_features, df_encoded_columns):
     return df_final
 
 
-# Load local model
-import os
-import joblib
-
-def load_local_model(pkl_path):
-    with open(pkl_path, "rb") as f:
-        model_dict = joblib.load(f)
-    return model_dict
 
 # Main application
 def main():
@@ -585,13 +577,7 @@ def main():
     </div>
     """, unsafe_allow_html=True)
 
-    # Initialize session state
-    if os.path.exists("ckd_model.pkl"):
-        results = load_local_model("ckd_model.pkl")
-        st.session_state['trained'] = True
-        st.session_state['results'] = results
-        st.session_state['df_encoded_columns'] = results.get('df_encoded_columns', None)
-
+    
     # Load data
     with st.spinner('Loading data...'):
         df, df_encoded, X, y, df_original, df_clean = load_and_process_data()
